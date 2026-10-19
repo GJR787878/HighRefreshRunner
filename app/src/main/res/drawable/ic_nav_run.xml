@@ -1,0 +1,16 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <!-- 奔跑小人导航图标（会被 GlassNavBar 自动着色） -->
+    <path
+        android:pathData="M12,3.8 a2.2,2.2 0 1,0 0.01,0"
+        android:fillColor="#FFFFFFFF" />
+    <path
+        android:pathData="M12,7.5 L12,12.5 M12,8 L15.2,9.6 M12,8 L9,10.2 M12,12.5 L14.8,16.6 M12,12.5 L9.4,17.2"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="1.8"
+        android:strokeLineCap="round"
+        android:fillColor="#00000000" />
+</vector>

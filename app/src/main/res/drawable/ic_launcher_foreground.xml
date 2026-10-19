@@ -1,0 +1,18 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- 奔跑小人前景：蓝底白描边圆头 + 白色奔跑姿态四肢 -->
+    <path
+        android:pathData="M54,26 a9,9 0 1,0 0.01,0 z"
+        android:fillColor="#0A84FF"
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="4" />
+    <path
+        android:pathData="M54,44 L54,62 M54,46 L65,52 M54,46 L43,54 M54,62 L65,76 M54,62 L42,80"
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="5"
+        android:strokeLineCap="round"
+        android:fillColor="#00000000" />
+</vector>

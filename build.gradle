@@ -1,0 +1,4 @@
+// 工具链版本（§0.5 钉死）：AGP 8.5.2 / Gradle 8.9 / JDK 17 / minSdk 31 / compileSdk 34
+plugins {
+    id 'com.android.application' version '8.5.2' apply false
+}

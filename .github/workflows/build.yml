@@ -1,0 +1,105 @@
+# §2.4.1 标准 CI：main push 编译 + tag v* 自动发版（branches + tags 双触发，缺 tags 打 tag 不编译）
+name: Build APK
+
+on:
+  push:
+    branches: [ main ]
+    paths-ignore: [ 'latest_version.txt' ]   # 版本文件自提交不回环
+    tags: [ 'v*' ]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # §2.2 手动写 SDK license，避免旧版 setup action 失效；缺失的 platform/build-tools 由构建自动下载
+      - name: Accept Android SDK licenses
+        run: |
+          mkdir -p "$ANDROID_HOME/licenses"
+          printf '8933bad161af4178e1188d1a27f6f341460dfd22\n24333f8a63b6825ea9c5514f83c2829b004d1fee\nd56f5187479451eabf01fb78af6dfcb131a6481e\n' > "$ANDROID_HOME/licenses/android-sdk-license"
+          printf '84831b9409646a918e30573bab4c9c91346d8abd\n' > "$ANDROID_HOME/licenses/android-sdk-preview-license"
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Gradle 8.9
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+
+      # §2.3 固定签名：keystore 只在 secret 中，绝不入库（.gitignore 已排除 keystore/）
+      - name: Restore signing keystore
+        run: |
+          if [ -n "$KEYSTORE_BASE64" ]; then
+            mkdir -p keystore
+            echo "$KEYSTORE_BASE64" | base64 -d > keystore/highrefreshrunner.jks
+          fi
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+
+      - name: Build release APK
+        run: gradle :app:assembleRelease --no-daemon --stacktrace
+        env:
+          KEYSTORE_FILE: ${{ github.workspace }}/keystore/highrefreshrunner.jks
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+
+      # §2.2 验签断言：APK 证书 SHA-256 必须等于固定 keystore 指纹，防止签名漂移导致无法覆盖安装
+      - name: Verify APK signature
+        run: |
+          APKSIGNER=$(ls "$ANDROID_HOME"/build-tools/*/apksigner | tail -1)
+          ACTUAL=$("$APKSIGNER" verify --print-certs app/build/outputs/apk/release/app-release.apk | grep -oE '([0-9A-F]{2}:){31}[0-9A-F]{2}' | head -1)
+          echo "APK cert SHA-256 : $ACTUAL"
+          echo "Expected         : 63:E7:91:3B:BC:4C:E4:D3:A8:06:AE:74:08:82:BE:9A:A9:1F:37:61:4A:92:52:9F:7D:DA:E1:A2:DE:5B:DA:A7"
+          test -n "$ACTUAL"
+          test "$ACTUAL" = "63:E7:91:3B:BC:4C:E4:D3:A8:06:AE:74:08:82:BE:9A:A9:1F:37:61:4A:92:52:9F:7D:DA:E1:A2:DE:5B:DA:A7"
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: apk
+          path: app/build/outputs/apk/release/*.apk
+
+      # §2.1 步骤5：更新版本文件（仅 main 分支 + continue-on-error，防并发冲突拖垮构建）
+      - name: Update version file (main only)
+        if: github.ref == 'refs/heads/main'
+        continue-on-error: true
+        run: |
+          VERSION=$(sed -n 's/.*versionName "\([^"]*\)".*/\1/p' app/build.gradle)
+          echo "$VERSION" > latest_version.txt
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add latest_version.txt
+          git commit -m "更新版本文件 $VERSION"
+          git push
+
+      # §2.4.2 tag 触发时：打包 + 自动创建 Release
+      - name: Package APK (tag only)
+        if: startsWith(github.ref, 'refs/tags/')
+        run: |
+          mkdir -p release
+          cp app/build/outputs/apk/release/app-release.apk "release/HighRefreshRunner-${{ github.ref_name }}.apk"
+
+      - name: Create GitHub Release (tag only)
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          name: "HighRefreshRunner ${{ github.ref_name }}"
+          files: "release/HighRefreshRunner-${{ github.ref_name }}.apk"
+          body: |
+            ## 版本 ${{ github.ref_name }}
+
+            - 强制屏幕最高刷新率 + 奔跑小人动画（手机/平板通用）
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -1,0 +1,62 @@
+plugins {
+    id 'com.android.application'
+}
+
+// 固定签名 keystore（§2.3）：口令默认值写在此处，CI 用 secret 注入覆盖；
+// keystore 文件不存在时回退 debug 签名，保证本地/无 secret 环境也能出可安装包（§2.2 debug 也用 release 签名）
+def env = System.getenv()
+def KEYSTORE_FILE_PATH = env.getOrDefault('KEYSTORE_FILE', "${rootProject.projectDir}/keystore/highrefreshrunner.jks")
+def KEYSTORE_PASSWORD = env.getOrDefault('KEYSTORE_PASSWORD', 'Hrf@2026#GJR')
+def KEY_ALIAS = env.getOrDefault('KEY_ALIAS', 'highrefreshrunner')
+def KEY_PASSWORD = env.getOrDefault('KEY_PASSWORD', 'Hrf@2026#GJR')
+def keystoreFile = new File(KEYSTORE_FILE_PATH)
+
+android {
+    namespace 'io.github.gjr787878.highrefreshrunner'
+    compileSdk 34
+
+    defaultConfig {
+        applicationId "io.github.gjr787878.highrefreshrunner"
+        minSdk 31
+        targetSdk 34
+        versionCode 1
+        versionName "1.0.0"
+    }
+
+    signingConfigs {
+        release {
+            if (keystoreFile.exists()) {
+                storeFile keystoreFile
+                storePassword KEYSTORE_PASSWORD
+                keyAlias KEY_ALIAS
+                keyPassword KEY_PASSWORD
+            }
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            if (keystoreFile.exists()) {
+                signingConfig signingConfigs.release
+            } else {
+                signingConfig signingConfigs.debug
+            }
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+
+    lint {
+        checkReleaseBuilds false
+        abortOnError false
+    }
+}
+
+dependencies {
+    // §8 GlassButtons 组件库（JitPack 远程依赖）
+    implementation 'com.github.GJR787878:GlassButtons:v1.0.5'
+}
