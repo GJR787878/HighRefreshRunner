@@ -54,10 +54,11 @@ jobs:
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
 
       # §2.2 验签断言：APK 证书 SHA-256 必须等于固定 keystore 指纹，防止签名漂移导致无法覆盖安装
+      # 注意：apksigner 输出小写十六进制，统一转大写再比对
       - name: Verify APK signature
         run: |
           APKSIGNER=$(ls "$ANDROID_HOME"/build-tools/*/apksigner | tail -1)
-          ACTUAL=$("$APKSIGNER" verify --print-certs app/build/outputs/apk/release/app-release.apk | grep -oE '([0-9A-F]{2}:){31}[0-9A-F]{2}' | head -1)
+          ACTUAL=$("$APKSIGNER" verify --print-certs app/build/outputs/apk/release/app-release.apk | grep -oiE '([0-9a-f]{2}:){31}[0-9a-f]{2}' | head -1 | tr '[:lower:]' '[:upper:]')
           echo "APK cert SHA-256 : $ACTUAL"
           echo "Expected         : 63:E7:91:3B:BC:4C:E4:D3:A8:06:AE:74:08:82:BE:9A:A9:1F:37:61:4A:92:52:9F:7D:DA:E1:A2:DE:5B:DA:A7"
           test -n "$ACTUAL"
